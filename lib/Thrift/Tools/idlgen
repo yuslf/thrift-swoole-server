@@ -77,6 +77,68 @@ EOT;
     return true;
 }
 
+function handler($thrift)
+{
+    if (! file_exists('./' . $thrift)) {
+        return false;
+    }
+
+    $thrift = file_get_contents('./' . $thrift);
+    if (empty($thrift)) {
+        return false;
+    }
+
+    if (preg_match("/^namespace\s+php\s+(.*)/", $thrift, $matches) === false) {
+        return false;
+    }
+
+    if (empty($matches[1])) {
+        return false;
+    }
+
+    $namespace = explode('.', $matches[1]);
+    $server_name = $namespace[count($namespace) - 1];
+
+    $server = './gen-php/' . implode('/', $namespace) . '/' . $server_name . '.php';
+
+    if (! file_exists($server)) {
+        return false;
+    }
+
+    $server = file_get_contents($server);
+    if (empty($server)) {
+        return false;
+    }
+
+    if (preg_match("/interface {$server_name}If \{(.*?)\}/is", $server, $matches) === false) {
+        return false;
+    }
+
+    if (empty($matches[1])) {
+        return false;
+    }
+
+    $server = $matches[1];
+
+    $use = implode("\\", $namespace);
+
+    $handler = <<<EOT
+<?php
+namespace your_service_path\\{$server_name};
+
+use {$use}\\{$server_name}If;
+
+class Handler implements {$server_name}If
+{
+    {$server}
+}
+EOT;
+
+    file_put_contents('./gen-php/' . implode('/', $namespace) . '/Handler.php', $handler);
+
+    return true;
+}
+
 function gen($dir, & $err = null)
 {
     if (@ ! chdir($dir)) {
@@ -99,6 +161,7 @@ function gen($dir, & $err = null)
                 echo "thrift --gen php:server {$file}  ...  失败！状态：{$val}，输出：{$out}\n";
             } else {
                 echo  "thrift --gen php:server {$file}  ...  成功！\n";
+                handler('./' . $file);
             }
             $thrift[] = $file;
         }
@@ -111,7 +174,6 @@ function gen($dir, & $err = null)
 
     return true;
 }
-
 
 $params = getParams();
 
