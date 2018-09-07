@@ -1,0 +1,143 @@
+#!/usr/bin/env php
+<?php
+
+const IDL = 'idl';
+const GEN = 'gen';
+//const MAKE = 'make';
+
+const DIR = './IDL';
+
+function getParams()
+{
+    return getopt('c:', ['idl_dir::']);
+}
+
+function getCommand($params)
+{
+    if (! empty($params['c']) and trim($params['c'])) {
+        return trim($params['c']);
+    }
+    return false;
+}
+
+function verifyCommand($command)
+{
+    if (! in_array(strtolower($command), [IDL, GEN])) {
+        return false;
+    }
+    return true;
+}
+
+function getDir($params)
+{
+    if (! empty($params['idl_dir']) and trim($params['idl_dir'])) {
+        return trim($params['idl_dir']);
+    }
+    return DIR;
+}
+
+function createDir($dir)
+{
+    if (! file_exists($dir)) {
+        return mkdir($dir, 0755, true);
+    }
+    return true;
+}
+
+function idl($dir)
+{
+    $idl = <<<EOT
+namespace php Rpc.HelloSwoole
+
+typedef i64 Int
+
+enum RetCode
+{
+  SUCCESS     = 0,
+  PARAM_ERROR = 1000,
+  ACCESS_DENY = 1001,
+}
+
+struct Message
+{
+  1:Int send_uid,
+  2:Int recv_uid,
+  3:Int channel_id,
+  4:string name,
+  5:Int price,
+  6:Int count,
+}
+
+service HelloSwoole
+{
+  RetCode sendMessage(1:Message msg)
+}
+EOT;
+    file_put_contents($dir . '/HelloSwoole.thrift', $idl);
+    return true;
+}
+
+function gen($dir, & $err = null)
+{
+    if (@ ! chdir($dir)) {
+        $err = "切换到{$dir}目录失败！";
+        return false;
+    }
+
+    @ $dh = opendir('.');
+    if (! $dh) {
+        $err = "读取{$dir}目录失败！";
+        return false;
+    }
+
+    $thrift = [];
+    while (@ $file = readdir($dh))
+    {
+        if (@ filetype('./' . $file) == 'file' and substr($file, -7) == '.thrift') {
+            @ $out = system("thrift --gen php {$file}", $val);
+            if ($val != 0) {
+                echo "thrift --gen php:server {$file}  ...  失败！状态：{$val}，输出：{$out}\n";
+            } else {
+                echo  "thrift --gen php:server {$file}  ...  成功！\n";
+            }
+            $thrift[] = $file;
+        }
+    }
+
+    if (empty($thrift)) {
+        $err = "{$dir}目录中没有.thrift文件！";
+        return false;
+    }
+
+    return true;
+}
+
+
+$params = getParams();
+
+$command = getCommand($params);
+
+if (! verifyCommand($command)) {
+    die('无效的命令：' . $command . '；合法的命令：' . IDL . ' | ' . GEN . "\n\n");
+}
+
+$dir = getDir($params);
+
+if (! createDir($dir)) {
+    die('创建目录：' . $dir . '失败！' . "\n\n");
+}
+
+$error = 'N/A';
+$result = false;
+switch ($command)
+{
+    case IDL :
+        $result = idl($dir);
+        break;
+
+    case GEN :
+        $result = gen($dir, $error);
+        break;
+}
+
+die('命令: ' . $command . ' 执行' . ($result ? '成功!' : '失败!错误提示:' . $error) . "\n\n");

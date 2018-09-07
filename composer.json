@@ -1,0 +1,23 @@
+{
+    "name": "yuslf/thrift-swoole-server",
+    "description": "thrift-swoole-server",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["Thrift", "PHP", "Swoole"],
+    "version": "0.0.1",
+    "authors": [
+        {
+            "name": "Man Hong",
+            "email": "angelo@263.net"
+        }
+    ],
+    "require": {
+        "php": ">=5.4.0"
+    },
+
+    "autoload": {
+        "psr-0": {
+            "Thrift": "lib/"
+        }
+    }
+}
