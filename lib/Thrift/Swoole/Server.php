@@ -56,7 +56,10 @@ class Server
 
     public function serve()
     {
-        if (empty($this->ip))
+        if (empty($this->ip) or empty($this->port)) {
+            $this->notice('IP | Port Fault!');
+            return false;
+        }
         $server = new \swoole_server($this->ip, $this->port);
 
         $server->on('workerStart', [$this, 'start']);

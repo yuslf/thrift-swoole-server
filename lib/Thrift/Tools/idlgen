@@ -9,7 +9,7 @@ const DIR = './IDL';
 
 function getParams()
 {
-    return getopt('c:', ['idl_dir::']);
+    return getopt('c:', ['idl_dir::', 'svc_ns::']);
 }
 
 function getCommand($params)
@@ -34,6 +34,14 @@ function getDir($params)
         return trim($params['idl_dir']);
     }
     return DIR;
+}
+
+function getSVC($params)
+{
+    if (! empty($params['svc_ns']) and trim($params['svc_ns'])) {
+        return trim($params['svc_ns']);
+    }
+    return '';
 }
 
 function createDir($dir)
@@ -77,7 +85,7 @@ EOT;
     return true;
 }
 
-function handler($thrift)
+function handler($thrift, $svc = '', $cwd = '.')
 {
     if (! file_exists('./' . $thrift)) {
         return false;
@@ -118,13 +126,26 @@ function handler($thrift)
         return false;
     }
 
+    if ($svc) {
+        $svc = explode("\\", $svc);
+        $svc_ns = implode("\\", $svc);
+        $svc_path = $cwd . '/' . implode('/', $svc);
+        @ $svc = mkdir($svc_path, 0755, true);
+        $svc_path .= '/Handler.php';
+    }
+
+    if (! $svc) {
+        $svc_ns = "your_service_path\\{$server_name}";
+        $svc_path = './gen-php/' . implode('/', $namespace) . '/Handler.php';
+    }
+
     $server = $matches[1];
 
     $use = implode("\\", $namespace);
 
     $handler = <<<EOT
 <?php
-namespace your_service_path\\{$server_name};
+namespace {$svc_ns};
 
 use {$use}\\{$server_name}If;
 
@@ -134,13 +155,15 @@ class Handler implements {$server_name}If
 }
 EOT;
 
-    file_put_contents('./gen-php/' . implode('/', $namespace) . '/Handler.php', $handler);
+    file_put_contents($svc_path, $handler);
 
     return true;
 }
 
-function gen($dir, & $err = null)
+function gen($dir, $svc, & $err = null)
 {
+    $cwd = getcwd();
+
     if (@ ! chdir($dir)) {
         $err = "切换到{$dir}目录失败！";
         return false;
@@ -156,12 +179,12 @@ function gen($dir, & $err = null)
     while (@ $file = readdir($dh))
     {
         if (@ filetype('./' . $file) == 'file' and substr($file, -7) == '.thrift') {
-            @ $out = system("thrift --gen php {$file}", $val);
+            @ $out = system("thrift --gen php:server {$file}", $val);
             if ($val != 0) {
                 echo "thrift --gen php:server {$file}  ...  失败！状态：{$val}，输出：{$out}\n";
             } else {
                 echo  "thrift --gen php:server {$file}  ...  成功！\n";
-                handler('./' . $file);
+                handler('./' . $file, $svc, $cwd);
             }
             $thrift[] = $file;
         }
@@ -185,6 +208,8 @@ if (! verifyCommand($command)) {
 
 $dir = getDir($params);
 
+$svc = getSVC($params);
+
 if (! createDir($dir)) {
     die('创建目录：' . $dir . '失败！' . "\n\n");
 }
@@ -198,7 +223,7 @@ switch ($command)
         break;
 
     case GEN :
-        $result = gen($dir, $error);
+        $result = gen($dir, $svc, $error);
         break;
 }
 

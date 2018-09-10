@@ -23,6 +23,9 @@ class TRequestHelper
         $this->baseDir = $baseDir;
         $this->baseNamespace = $baseNamespace;
 
+        $this->serverDir = $serverDir;
+        $this->serverNamespace = $serverNamespace;
+
         $loader = new ThriftClassLoader();
         $loader->registerNamespace($baseNamespace, $baseDir . '/gen-php');
         $loader->registerDefinition($baseNamespace, $baseDir . '/gen-php');

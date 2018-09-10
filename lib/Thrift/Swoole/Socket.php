@@ -40,7 +40,8 @@ class Socket extends Thrift\Transport\TFramedTransport
         return $data;
     }
 
-    public function read($len) {
+    public function read($len)
+    {
         if (!$this->read_) {
             return $this->_read($len);
         }
@@ -61,12 +62,12 @@ class Socket extends Thrift\Transport\TFramedTransport
         return $out;
     }
 
-    public function write($buf)
+    public function write($buf, $len = null)
     {
         $this->wBuf_ .= $buf;
     }
 
-    function flush()
+    public function flush()
     {
         $out = pack('N', strlen($this->wBuf_));
         $out .= $this->wBuf_;
